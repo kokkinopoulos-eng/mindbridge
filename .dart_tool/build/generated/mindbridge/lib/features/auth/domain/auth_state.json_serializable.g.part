@@ -1,0 +1,52 @@
+// **************************************************************************
+// JsonSerializableGenerator
+// **************************************************************************
+
+_$AppUserImpl _$$AppUserImplFromJson(Map<String, dynamic> json) =>
+    _$AppUserImpl(
+      id: json['id'] as String,
+      email: json['email'] as String?,
+      isAnonymous: json['isAnonymous'] as bool? ?? false,
+      isOnboarded: json['isOnboarded'] as bool? ?? false,
+      displayName: json['displayName'] as String?,
+      subscriptionTier: json['subscriptionTier'] as String? ?? 'free',
+      preferences: json['preferences'] == null
+          ? null
+          : UserPreferences.fromJson(
+              json['preferences'] as Map<String, dynamic>),
+    );
+
+Map<String, dynamic> _$$AppUserImplToJson(_$AppUserImpl instance) =>
+    <String, dynamic>{
+      'id': instance.id,
+      'email': instance.email,
+      'isAnonymous': instance.isAnonymous,
+      'isOnboarded': instance.isOnboarded,
+      'displayName': instance.displayName,
+      'subscriptionTier': instance.subscriptionTier,
+      'preferences': instance.preferences,
+    };
+
+_$UserPreferencesImpl _$$UserPreferencesImplFromJson(
+        Map<String, dynamic> json) =>
+    _$UserPreferencesImpl(
+      aiTone: json['aiTone'] as String? ?? 'friendly',
+      concerns: (json['concerns'] as List<dynamic>?)
+              ?.map((e) => e as String)
+              .toList() ??
+          const ['anxiety'],
+      preferredSessionMinutes:
+          (json['preferredSessionMinutes'] as num?)?.toInt() ?? 15,
+      notificationsEnabled: json['notificationsEnabled'] as bool? ?? true,
+      language: json['language'] as String? ?? 'el',
+    );
+
+Map<String, dynamic> _$$UserPreferencesImplToJson(
+        _$UserPreferencesImpl instance) =>
+    <String, dynamic>{
+      'aiTone': instance.aiTone,
+      'concerns': instance.concerns,
+      'preferredSessionMinutes': instance.preferredSessionMinutes,
+      'notificationsEnabled': instance.notificationsEnabled,
+      'language': instance.language,
+    };
