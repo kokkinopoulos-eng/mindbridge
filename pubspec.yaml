@@ -37,6 +37,8 @@ dependencies:
   fl_chart: ^0.68.0           # Mood charts
   lottie: ^3.1.2              # Animations (breathing)
   flutter_animate: ^4.5.0     # Page transitions
+  flutter_markdown: ^0.7.4    # Markdown rendering for AI messages
+  share_plus: ^10.0.3         # Session export / share
 
   # ── Utils ─────────────────────────────────────
   intl: ^0.19.0
@@ -53,6 +55,10 @@ dependencies:
   # ── Audio (exercises) ─────────────────────────
   just_audio: ^0.9.40
   audio_session: ^0.1.21
+
+  # ── Voice mode ────────────────────────────────
+  speech_to_text: ^7.0.0
+  flutter_tts: ^4.2.0
 
   # ── Crypto / Security ─────────────────────────
   crypto: ^3.0.5

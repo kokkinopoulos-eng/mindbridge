@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import '../../../core/constants/app_colors.dart';
 import '../../../core/constants/app_spacing.dart';
 import '../../../shared/widgets/mb_card.dart';
+import 'exercise_player_screen.dart';
 
 class ExercisesScreen extends StatefulWidget {
   const ExercisesScreen({super.key});
@@ -16,14 +17,14 @@ class _ExercisesScreenState extends State<ExercisesScreen> {
   static const _categories = ['Όλες', '😮‍💨 Αναπνοή', '🧘 Mindfulness', '✏️ Journal', '😴 Ύπνος'];
 
   static const _exercises = [
-    (emoji: '🌬️', title: '4-7-8 Αναπνοή',       cat: 1, duration: '5 λεπτ.',  color: Color(0xFFE6F5F0), badge: 'Άγχος'),
-    (emoji: '📦', title: 'Box Breathing',          cat: 1, duration: '5 λεπτ.',  color: Color(0xFFEBF4FF), badge: 'Άγχος'),
-    (emoji: '🌟', title: '5-4-3-2-1 Grounding',   cat: 2, duration: '10 λεπτ.', color: Color(0xFFFEF9EC), badge: 'Πανικός'),
-    (emoji: '🧠', title: 'Thought Record',         cat: 3, duration: '15 λεπτ.', color: Color(0xFFEDE9FE), badge: 'CBT'),
-    (emoji: '🌿', title: 'Body Scan',              cat: 2, duration: '20 λεπτ.', color: Color(0xFFF0FDF4), badge: 'Ύπνος'),
-    (emoji: '📓', title: 'Gratitude Journal',      cat: 3, duration: '10 λεπτ.', color: Color(0xFFFFF7ED), badge: 'Διάθεση'),
-    (emoji: '🌙', title: 'Sleep Wind-down',        cat: 4, duration: '15 λεπτ.', color: Color(0xFFF5F3FF), badge: 'Ύπνος'),
-    (emoji: '💪', title: 'Progressive Relaxation', cat: 2, duration: '20 λεπτ.', color: Color(0xFFECFDF5), badge: 'Stress'),
+    (emoji: '🌬️', title: '4-7-8 Αναπνοή',       cat: 1, duration: '5 λεπτ.',  color: Color(0xFFE6F5F0), badge: 'Άγχος',   type: ExerciseType.breathing478),
+    (emoji: '📦', title: 'Box Breathing',          cat: 1, duration: '5 λεπτ.',  color: Color(0xFFEBF4FF), badge: 'Άγχος',   type: ExerciseType.boxBreathing),
+    (emoji: '🌟', title: '5-4-3-2-1 Grounding',   cat: 2, duration: '10 λεπτ.', color: Color(0xFFFEF9EC), badge: 'Πανικός', type: ExerciseType.grounding54321),
+    (emoji: '🧠', title: 'Thought Record',         cat: 3, duration: '15 λεπτ.', color: Color(0xFFEDE9FE), badge: 'CBT',     type: ExerciseType.thoughtRecord),
+    (emoji: '🌿', title: 'Body Scan',              cat: 2, duration: '20 λεπτ.', color: Color(0xFFF0FDF4), badge: 'Ύπνος',   type: ExerciseType.bodyScan),
+    (emoji: '📓', title: 'Gratitude Journal',      cat: 3, duration: '10 λεπτ.', color: Color(0xFFFFF7ED), badge: 'Διάθεση', type: ExerciseType.gratitude),
+    (emoji: '🌙', title: 'Sleep Wind-down',        cat: 4, duration: '15 λεπτ.', color: Color(0xFFF5F3FF), badge: 'Ύπνος',   type: ExerciseType.bodyScan),
+    (emoji: '💪', title: 'Progressive Relaxation', cat: 2, duration: '20 λεπτ.', color: Color(0xFFECFDF5), badge: 'Stress',  type: ExerciseType.bodyScan),
   ];
 
   @override
@@ -93,6 +94,20 @@ class _ExercisesScreenState extends State<ExercisesScreen> {
                 duration: ex.duration,
                 bgColor: ex.color,
                 badge: ex.badge,
+                onTap: () => Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (_) => ExercisePlayerScreen(
+                      config: ExerciseConfig(
+                        type:  ex.type,
+                        title: ex.title,
+                        emoji: ex.emoji,
+                        color: ex.color,
+                        badge: ex.badge,
+                      ),
+                    ),
+                  ),
+                ),
               );
             },
           );
@@ -107,14 +122,16 @@ class _ExerciseCard extends StatelessWidget {
     required this.duration,
     required this.bgColor,
     required this.badge,
+    required this.onTap,
   });
 
   final String emoji, title, duration, badge;
   final Color bgColor;
+  final VoidCallback onTap;
 
   @override
   Widget build(BuildContext context) => MbCard(
-        onTap: () {},
+        onTap: onTap,
         padding: EdgeInsets.zero,
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,

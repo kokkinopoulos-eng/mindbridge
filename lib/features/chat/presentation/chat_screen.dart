@@ -1,15 +1,20 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
+import 'package:flutter_markdown/flutter_markdown.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:riverpod_annotation/riverpod_annotation.dart';
 import '../../../core/ai/ai_provider_settings.dart';
 import '../../../core/ai/ai_chat_service.dart';
+import '../../profile/data/profile_notifier.dart';
+import '../data/sessions_notifier.dart';
+import '../domain/chat_session.dart';
 import '../../../core/constants/app_colors.dart';
 import '../../../core/constants/app_spacing.dart';
 import '../../../core/routing/app_router.dart';
 import '../../../core/utils/extensions.dart';
 import '../../../shared/widgets/crisis_banner.dart';
+import 'sessions_bottom_sheet.dart';
 
 part 'chat_screen.g.dart';
 
@@ -35,29 +40,46 @@ class ChatMessage {
 // ── State ──────────────────────────────────────────────────────────────────
 class ChatState {
   const ChatState({
-    this.messages  = const [],
-    this.isTyping  = false,
+    this.messages       = const [],
+    this.isTyping       = false,
     this.error,
-    this.needsKey  = false,
+    this.needsKey       = false,
+    this.sessionId,
+    this.sessionTitle   = 'Νέα Συνεδρία',
+    this.lastUserText,
+    this.sessionEnded   = false,
   });
 
   final List<ChatMessage> messages;
   final bool isTyping;
   final String? error;
-  /// true when the user hasn't configured an API key yet
   final bool needsKey;
+  final String? sessionId;
+  final String sessionTitle;
+  /// Last user text sent — for retry on error
+  final String? lastUserText;
+  /// True after "Τέλος Συνεδρίας" pressed
+  final bool sessionEnded;
 
   ChatState copyWith({
     List<ChatMessage>? messages,
     bool? isTyping,
     String? error,
     bool? needsKey,
+    String? sessionId,
+    String? sessionTitle,
+    String? lastUserText,
+    bool? sessionEnded,
   }) =>
       ChatState(
-        messages: messages  ?? this.messages,
-        isTyping: isTyping  ?? this.isTyping,
-        error:    error,
-        needsKey: needsKey  ?? this.needsKey,
+        messages:      messages      ?? this.messages,
+        isTyping:      isTyping      ?? this.isTyping,
+        error:         error,
+        needsKey:      needsKey      ?? this.needsKey,
+        sessionId:     sessionId     ?? this.sessionId,
+        sessionTitle:  sessionTitle  ?? this.sessionTitle,
+        lastUserText:  lastUserText  ?? this.lastUserText,
+        sessionEnded:  sessionEnded  ?? this.sessionEnded,
       );
 }
 
@@ -65,8 +87,10 @@ class ChatState {
 @riverpod
 AiChatService? aiChatService(Ref ref) {
   final settingsAsync = ref.watch(aiSettingsNotifierProvider);
+  final profileAsync  = ref.watch(profileNotifierProvider);
+  final profile = profileAsync.valueOrNull;
   return settingsAsync.when(
-    data:    (s) => s.isConfigured ? AiChatService(s) : null,
+    data:    (s) => s.isConfigured ? AiChatService(s, profile: profile) : null,
     loading: () => null,
     error:   (_, __) => null,
   );
@@ -89,28 +113,84 @@ class ChatNotifier extends _$ChatNotifier {
       state = state.copyWith(needsKey: next == null);
     });
 
-    _init();
+    _loadCurrentSession();
     return const ChatState();
   }
 
-  void _init() {
-    final welcome = ChatMessage(
-      id:        'welcome',
-      role:      MessageRole.assistant,
-      content:   _welcomeMsg,
-      createdAt: DateTime.now(),
-    );
-    Future.microtask(() {
-      final service = ref.read(aiChatServiceProvider);
-      state = state.copyWith(
-        messages: [welcome],
-        needsKey: service == null,
+  // ── Session loading ─────────────────────────────────────────────────────
+  Future<void> _loadCurrentSession() async {
+    final sessionsNotifier = ref.read(sessionsNotifierProvider.notifier);
+    final sessionsAsync    = ref.read(sessionsNotifierProvider);
+    SessionsState sessState;
+    try {
+      sessState = await sessionsAsync.when(
+        data:    (s) async => s,
+        loading: () => ref.read(sessionsNotifierProvider.future),
+        error:   (_, __) async => const SessionsState(),
       );
-    });
+    } catch (_) {
+      sessState = const SessionsState();
+    }
+
+    ChatSession session;
+    if (sessState.current != null) {
+      session = sessState.current!;
+    } else {
+      session = await sessionsNotifier.newSession();
+    }
+
+    final uiMessages = [
+      _buildWelcome(),
+      ...session.messages.map(_storedToUi),
+    ];
+
+    final service = ref.read(aiChatServiceProvider);
+    state = ChatState(
+      messages:     uiMessages,
+      sessionId:    session.id,
+      sessionTitle: session.title,
+      needsKey:     service == null,
+    );
   }
 
+  /// Switch to (or reload) a specific session
+  Future<void> loadSession(String sessionId) async {
+    await ref.read(sessionsNotifierProvider.notifier).switchTo(sessionId);
+    final sessState = await ref.read(sessionsNotifierProvider.future);
+    final session   = sessState.sessions.where((s) => s.id == sessionId).firstOrNull;
+    if (session == null) return;
+
+    final uiMessages = [
+      _buildWelcome(),
+      ...session.messages.map(_storedToUi),
+    ];
+
+    final service = ref.read(aiChatServiceProvider);
+    state = ChatState(
+      messages:     uiMessages,
+      sessionId:    session.id,
+      sessionTitle: session.title,
+      needsKey:     service == null,
+    );
+  }
+
+  /// Start a brand-new session
+  Future<void> newSession() async {
+    await _sub?.cancel();
+    final session = await ref.read(sessionsNotifierProvider.notifier).newSession();
+    final service = ref.read(aiChatServiceProvider);
+    state = ChatState(
+      messages:     [_buildWelcome()],
+      sessionId:    session.id,
+      sessionTitle: session.title,
+      needsKey:     service == null,
+    );
+  }
+
+  // ── Message sending ─────────────────────────────────────────────────────
   Future<void> sendMessage(String text) async {
     if (text.trim().isEmpty) return;
+    if (state.sessionEnded) return;
 
     final service = ref.read(aiChatServiceProvider);
     if (service == null) {
@@ -118,7 +198,9 @@ class ChatNotifier extends _$ChatNotifier {
       return;
     }
 
-    // Build history in API format
+    final sessionId = state.sessionId;
+
+    // Build history in API format (skip welcome placeholder)
     final history = state.messages
         .where((m) => m.id != 'welcome')
         .map((m) => {
@@ -143,13 +225,33 @@ class ChatNotifier extends _$ChatNotifier {
     );
 
     state = state.copyWith(
-      messages: [...state.messages, userMsg, placeholder],
-      isTyping: true,
-      error:    null,
+      messages:     [...state.messages, userMsg, placeholder],
+      isTyping:     true,
+      error:        null,
+      lastUserText: text.trim(),
     );
 
+    // Persist user message
+    if (sessionId != null) {
+      await ref.read(sessionsNotifierProvider.notifier).appendMessage(
+        sessionId,
+        StoredMessage(
+          role:      'user',
+          content:   text.trim(),
+          createdAt: userMsg.createdAt,
+        ),
+      );
+      // Update title in state if session got auto-titled
+      final sessState = ref.read(sessionsNotifierProvider).valueOrNull;
+      final session   = sessState?.sessions.where((s) => s.id == sessionId).firstOrNull;
+      if (session != null && session.title != state.sessionTitle) {
+        state = state.copyWith(sessionTitle: session.title);
+      }
+    }
+
     await _sub?.cancel();
-    bool hasCrisis = false;
+    bool hasCrisis    = false;
+    String assistantContent = '';
 
     _sub = service.sendMessage(history).listen(
       (chunk) {
@@ -157,13 +259,33 @@ class ChatNotifier extends _$ChatNotifier {
           final msgs = [...state.messages];
           if (msgs.isNotEmpty) msgs.last.isStreaming = false;
           state = state.copyWith(messages: msgs, isTyping: false);
+
+          // Persist assistant message
+          if (sessionId != null && assistantContent.isNotEmpty) {
+            ref.read(sessionsNotifierProvider.notifier).appendMessage(
+              sessionId,
+              StoredMessage(
+                role:      'assistant',
+                content:   assistantContent,
+                createdAt: DateTime.now(),
+              ),
+            );
+          }
+
+          // Extract insight every 5 user messages
+          final userCount = state.messages
+              .where((m) => m.role == MessageRole.user).length;
+          if (userCount % 5 == 0 && assistantContent.isNotEmpty) {
+            _extractAndSaveInsight(history, assistantContent);
+          }
           return;
         }
         if (chunk.isCrisis) hasCrisis = true;
+        assistantContent += chunk.text;
 
         final msgs = [...state.messages];
         if (msgs.isNotEmpty && msgs.last.isStreaming) {
-          msgs.last.content += chunk.text;
+          msgs.last.content = assistantContent;
         }
         state = state.copyWith(
           messages: msgs,
@@ -173,9 +295,7 @@ class ChatNotifier extends _$ChatNotifier {
       onError: (e) {
         final msgs = [...state.messages];
         if (msgs.isNotEmpty && msgs.last.isStreaming) {
-          msgs.last
-            ..content     = 'Σφάλμα σύνδεσης — δοκίμασε ξανά.'
-            ..isStreaming  = false;
+          msgs.remove(msgs.last); // Remove empty placeholder
         }
         state = state.copyWith(
           messages: msgs,
@@ -186,9 +306,75 @@ class ChatNotifier extends _$ChatNotifier {
     );
   }
 
-  void clearError() {
+  /// Retry the last failed message
+  Future<void> retryLastMessage() async {
+    final text = state.lastUserText;
+    if (text == null || text.isEmpty) return;
     state = state.copyWith(error: null);
+    await sendMessage(text);
   }
+
+  /// End the current session — AI delivers a wrap-up, then insight is saved
+  Future<void> endSession() async {
+    if (state.sessionEnded || state.isTyping) return;
+    const prompt =
+        '[ΤΕΛΟΣ ΣΥΝΕΔΡΙΑΣ] Ο χρήστης ολοκλήρωσε τη συνεδρία. '
+        'Κάνε ένα σύντομο therapeutic wrap-up (2-4 προτάσεις): '
+        'αναγνώρισε αυτό που μοιράστηκε, δώσε ένα σαφές takeaway ή βήμα για τη μέρα, '
+        'και αποχαιρέτησέ τον θερμά.';
+    await sendMessage(prompt);
+    state = state.copyWith(sessionEnded: true);
+    // Force insight extraction at session close regardless of count
+    final service = ref.read(aiChatServiceProvider);
+    if (service != null) {
+      final history = state.messages
+          .where((m) => m.id != 'welcome')
+          .map((m) => {
+                'role':    m.role == MessageRole.user ? 'user' : 'assistant',
+                'content': m.content,
+              })
+          .toList();
+      _extractAndSaveInsight(history, '');
+    }
+  }
+
+  /// Fire-and-forget: extract 1 insight, save to profile keypoints
+  Future<void> _extractAndSaveInsight(
+      List<Map<String, String>> history, String lastAssistant) async {
+    final service = ref.read(aiChatServiceProvider);
+    if (service == null) return;
+
+    final trimmed = history.length > 14 ? history.sublist(history.length - 14) : history;
+    final fullHistory = lastAssistant.isNotEmpty
+        ? [...trimmed, {'role': 'assistant', 'content': lastAssistant}]
+        : trimmed;
+    if (fullHistory.isEmpty) return;
+
+    final insight = await service.extractInsight(fullHistory);
+    if (insight == null || insight.trim().isEmpty) return;
+
+    final profile = ref.read(profileNotifierProvider).valueOrNull;
+    if (profile == null) return;
+    await ref.read(profileNotifierProvider.notifier)
+        .save(profile.withNewKeypoint(insight.trim()));
+  }
+
+  void clearError() => state = state.copyWith(error: null);
+
+  // ── Helpers ─────────────────────────────────────────────────────────────
+  static ChatMessage _buildWelcome() => ChatMessage(
+        id:        'welcome',
+        role:      MessageRole.assistant,
+        content:   _welcomeMsg,
+        createdAt: DateTime.now(),
+      );
+
+  static ChatMessage _storedToUi(StoredMessage m) => ChatMessage(
+        id:        '${m.createdAt.millisecondsSinceEpoch}',
+        role:      m.role == 'user' ? MessageRole.user : MessageRole.assistant,
+        content:   m.content,
+        createdAt: m.createdAt,
+      );
 }
 
 // ── Screen ─────────────────────────────────────────────────────────────────
@@ -233,6 +419,49 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
     _scrollToBottom();
   }
 
+  void _confirmEndSession(BuildContext context) {
+    showDialog(
+      context: context,
+      builder: (_) => AlertDialog(
+        title: const Text('Τέλος συνεδρίας;'),
+        content: const Text(
+          'Ο AI θα κάνει ένα σύντομο wrap-up και θα κλείσει τη συνεδρία. '
+          'Δεν θα μπορείς να συνεχίσεις — ξεκίνα νέα για νέα συνομιλία.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Άκυρο'),
+          ),
+          FilledButton(
+            onPressed: () {
+              Navigator.pop(context);
+              ref.read(chatNotifierProvider.notifier).endSession();
+            },
+            child: const Text('Τέλος'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _showSessions() {
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (_) => SessionsBottomSheet(
+        onSessionSelected: (id) {
+          ref.read(chatNotifierProvider.notifier).loadSession(id);
+          _scrollToBottom();
+        },
+        onNewSession: () {
+          ref.read(chatNotifierProvider.notifier).newSession();
+        },
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final chatState = ref.watch(chatNotifierProvider);
@@ -244,12 +473,11 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
       );
     }
 
-    // Auto-scroll
+    // Auto-scroll on new messages
     ref.listen(chatNotifierProvider, (_, __) => _scrollToBottom());
 
-    // Which provider is active (for status label)
-    final settingsAsync = ref.watch(aiSettingsNotifierProvider);
-    final providerLabel = settingsAsync.valueOrNull?.provider.label ?? '';
+    final settingsAsync  = ref.watch(aiSettingsNotifierProvider);
+    final providerLabel  = settingsAsync.valueOrNull?.provider.label ?? '';
 
     return Scaffold(
       appBar: AppBar(
@@ -257,35 +485,59 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
           children: [
             const _AiAvatar(),
             const SizedBox(width: AppSpacing.sm),
-            Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                const Text('MindBridge AI',
-                    style: TextStyle(fontSize: 15)),
-                Text(
-                  chatState.needsKey
-                      ? 'Χωρίς API key'
-                      : chatState.isTyping
-                          ? 'Γράφει...'
-                          : providerLabel,
-                  style: TextStyle(
-                    fontSize: 11,
-                    color: chatState.needsKey
-                        ? AppColors.statusCritical
-                        : AppColors.statusGood,
-                    fontWeight: FontWeight.w500,
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    chatState.sessionTitle,
+                    style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w700),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
                   ),
-                ),
-              ],
+                  Text(
+                    chatState.needsKey
+                        ? 'Χωρίς API key'
+                        : chatState.isTyping
+                            ? 'Γράφει...'
+                            : providerLabel,
+                    style: TextStyle(
+                      fontSize: 11,
+                      color: chatState.needsKey
+                          ? AppColors.statusCritical
+                          : AppColors.statusGood,
+                      fontWeight: FontWeight.w500,
+                    ),
+                  ),
+                ],
+              ),
             ),
           ],
         ),
         actions: [
+          // End session
+          if (!chatState.sessionEnded && chatState.messages.length > 1)
+            IconButton(
+              icon: const Icon(Icons.meeting_room_outlined),
+              tooltip: 'Τέλος συνεδρίας',
+              onPressed: chatState.isTyping
+                  ? null
+                  : () => _confirmEndSession(context),
+            ),
+          // Sessions list
           IconButton(
-            icon: const Icon(Icons.warning_amber_rounded,
-                color: AppColors.statusCritical),
-            tooltip: 'Γραμμές βοήθειας',
-            onPressed: () => setState(() => _showCrisis = true),
+            icon: const Icon(Icons.history_rounded),
+            tooltip: 'Ιστορικό συνεδριών',
+            onPressed: _showSessions,
+          ),
+          // New session
+          IconButton(
+            icon: const Icon(Icons.add_comment_outlined),
+            tooltip: 'Νέα συνεδρία',
+            onPressed: () {
+              ref.read(chatNotifierProvider.notifier).newSession();
+              context.go(AppRoutes.chat);
+            },
           ),
           // Settings shortcut
           IconButton(
@@ -333,18 +585,30 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
                   ),
                 ),
 
+              // Session ended banner
+              if (chatState.sessionEnded)
+                _SessionEndedBanner(onNew: () {
+                  ref.read(chatNotifierProvider.notifier).newSession();
+                  context.go(AppRoutes.chat);
+                }),
+
               // Error banner (non-crisis, non-key)
               if (chatState.error != null &&
                   chatState.error != '__crisis__' &&
-                  !chatState.needsKey)
-                _ErrorBanner(message: chatState.error!),
+                  !chatState.needsKey &&
+                  !chatState.sessionEnded)
+                _ErrorBanner(
+                  message: chatState.error!,
+                  onRetry: () =>
+                      ref.read(chatNotifierProvider.notifier).retryLastMessage(),
+                ),
 
               // Input bar
               _InputBar(
                 controller: _textCtrl,
-                focusNode: _inputFocusNode,
-                onSend: _send,
-                enabled: !chatState.needsKey,
+                focusNode:  _inputFocusNode,
+                onSend:     _send,
+                enabled:    !chatState.needsKey && !chatState.sessionEnded,
               ),
             ],
           ),
@@ -396,8 +660,9 @@ class _NoKeyBanner extends ConsumerWidget {
 
 // ── Error banner ───────────────────────────────────────────────────────────
 class _ErrorBanner extends StatelessWidget {
-  const _ErrorBanner({required this.message});
+  const _ErrorBanner({required this.message, this.onRetry});
   final String message;
+  final VoidCallback? onRetry;
 
   @override
   Widget build(BuildContext context) => Container(
@@ -405,17 +670,82 @@ class _ErrorBanner extends StatelessWidget {
           horizontal: AppSpacing.md,
           vertical: 4,
         ),
-        padding: const EdgeInsets.all(AppSpacing.sm),
+        padding: const EdgeInsets.symmetric(
+          horizontal: AppSpacing.md,
+          vertical: AppSpacing.sm,
+        ),
         decoration: BoxDecoration(
           color: AppColors.statusCritical.withOpacity(0.1),
           borderRadius: BorderRadius.circular(AppSpacing.rSm),
         ),
-        child: Text(
-          message,
-          style: const TextStyle(
-            color: AppColors.statusCritical,
-            fontSize: 12,
-          ),
+        child: Row(
+          children: [
+            Expanded(
+              child: Text(
+                'Σφάλμα σύνδεσης — έλεγξε το δίκτυό σου.',
+                style: const TextStyle(
+                  color: AppColors.statusCritical,
+                  fontSize: 12,
+                ),
+              ),
+            ),
+            if (onRetry != null)
+              TextButton.icon(
+                onPressed: onRetry,
+                icon: const Icon(Icons.refresh, size: 14),
+                label: const Text('Ξανά', style: TextStyle(fontSize: 12)),
+                style: TextButton.styleFrom(
+                  foregroundColor: AppColors.statusCritical,
+                  padding: const EdgeInsets.symmetric(horizontal: 8),
+                  minimumSize: Size.zero,
+                  tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                ),
+              ),
+          ],
+        ),
+      );
+}
+
+// ── Session ended banner ───────────────────────────────────────────────────
+class _SessionEndedBanner extends StatelessWidget {
+  const _SessionEndedBanner({required this.onNew});
+  final VoidCallback onNew;
+
+  @override
+  Widget build(BuildContext context) => Container(
+        width: double.infinity,
+        padding: const EdgeInsets.symmetric(
+          horizontal: AppSpacing.md,
+          vertical: 10,
+        ),
+        color: AppColors.brandLight,
+        child: Row(
+          children: [
+            const Icon(Icons.check_circle_outline,
+                color: AppColors.brand, size: 16),
+            const SizedBox(width: 8),
+            const Expanded(
+              child: Text(
+                'Η συνεδρία ολοκληρώθηκε',
+                style: TextStyle(
+                  color: AppColors.brandDark,
+                  fontSize: 12,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+            ),
+            TextButton(
+              onPressed: onNew,
+              style: TextButton.styleFrom(
+                foregroundColor: AppColors.brand,
+                padding: const EdgeInsets.symmetric(horizontal: 8),
+                minimumSize: Size.zero,
+                tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+              ),
+              child: const Text('Νέα συνεδρία →',
+                  style: TextStyle(fontSize: 12, fontWeight: FontWeight.w700)),
+            ),
+          ],
         ),
       );
 }
@@ -478,16 +808,53 @@ class _MessageBubble extends StatelessWidget {
                             minHeight: 2,
                           ),
                         )
-                      : Text(
-                          message.content,
-                          style: TextStyle(
-                            fontSize: 14,
-                            height: 1.5,
-                            color: isUser
-                                ? Colors.white
-                                : AppColors.textPrimary,
-                          ),
-                        ),
+                      : isUser
+                          ? Text(
+                              message.content,
+                              style: const TextStyle(
+                                fontSize: 14,
+                                height: 1.5,
+                                color: Colors.white,
+                              ),
+                            )
+                          : MarkdownBody(
+                              data: message.content,
+                              styleSheet: MarkdownStyleSheet(
+                                p: const TextStyle(
+                                  fontSize: 14,
+                                  height: 1.5,
+                                  color: AppColors.textPrimary,
+                                ),
+                                strong: const TextStyle(
+                                  fontSize: 14,
+                                  height: 1.5,
+                                  color: AppColors.textPrimary,
+                                  fontWeight: FontWeight.w700,
+                                ),
+                                em: const TextStyle(
+                                  fontSize: 14,
+                                  height: 1.5,
+                                  color: AppColors.textPrimary,
+                                  fontStyle: FontStyle.italic,
+                                ),
+                                listBullet: const TextStyle(
+                                  fontSize: 14,
+                                  height: 1.5,
+                                  color: AppColors.textPrimary,
+                                ),
+                                blockquote: const TextStyle(
+                                  fontSize: 13,
+                                  height: 1.5,
+                                  color: AppColors.textSecondary,
+                                  fontStyle: FontStyle.italic,
+                                ),
+                                code: const TextStyle(
+                                  fontSize: 13,
+                                  color: AppColors.brandDark,
+                                  backgroundColor: AppColors.brandLight,
+                                ),
+                              ),
+                            ),
                 ),
                 const SizedBox(height: 3),
                 Text(

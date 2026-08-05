@@ -12,6 +12,7 @@ import '../../features/chat/presentation/chat_screen.dart';
 import '../../features/exercises/presentation/exercises_screen.dart';
 import '../../features/assessment/presentation/assessment_screen.dart';
 import '../../features/settings/presentation/api_settings_screen.dart';
+import '../../features/profile/presentation/profile_screen.dart';
 import '../../shared/widgets/main_scaffold.dart';
 
 part 'app_router.g.dart';
@@ -29,6 +30,7 @@ abstract final class AppRoutes {
   static const assessment   = '/assessment/:type';
   static const assessResult = '/assessment/:type/result';
   static const apiSettings  = '/settings/api';
+  static const profile      = '/profile';
 
   static String assessmentPath(String type) => '/assessment/$type';
   static String assessResultPath(String type) => '/assessment/$type/result';
@@ -108,6 +110,11 @@ GoRouter appRouter(Ref ref) {
         path: AppRoutes.apiSettings,
         pageBuilder: (_, state) =>
             _fadeTransition(state, const ApiSettingsScreen()),
+      ),
+      GoRoute(
+        path: AppRoutes.profile,
+        pageBuilder: (_, state) =>
+            _fadeTransition(state, const ProfileScreen()),
       ),
       GoRoute(
         path: AppRoutes.assessment,

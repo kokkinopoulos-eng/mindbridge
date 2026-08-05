@@ -170,6 +170,12 @@
       "languageVersion": "3.4"
     },
     {
+      "name": "cross_file",
+      "rootUri": "file:///C:/Users/hkokin.MELISSA/AppData/Local/Pub/Cache/hosted/pub.dev/cross_file-0.3.5+4",
+      "packageUri": "lib/",
+      "languageVersion": "3.10"
+    },
+    {
       "name": "crypto",
       "rootUri": "file:///C:/Users/hkokin.MELISSA/AppData/Local/Pub/Cache/hosted/pub.dev/crypto-3.0.7",
       "packageUri": "lib/",
@@ -332,6 +338,12 @@
       "languageVersion": "2.17"
     },
     {
+      "name": "flutter_markdown",
+      "rootUri": "file:///C:/Users/hkokin.MELISSA/AppData/Local/Pub/Cache/hosted/pub.dev/flutter_markdown-0.7.7+1",
+      "packageUri": "lib/",
+      "languageVersion": "3.4"
+    },
+    {
       "name": "flutter_riverpod",
       "rootUri": "file:///C:/Users/hkokin.MELISSA/AppData/Local/Pub/Cache/hosted/pub.dev/flutter_riverpod-2.6.1",
       "packageUri": "lib/",
@@ -390,6 +402,12 @@
       "rootUri": "file:///C:/src/flutter/packages/flutter_test",
       "packageUri": "lib/",
       "languageVersion": "3.10"
+    },
+    {
+      "name": "flutter_tts",
+      "rootUri": "file:///C:/Users/hkokin.MELISSA/AppData/Local/Pub/Cache/hosted/pub.dev/flutter_tts-4.2.5",
+      "packageUri": "lib/",
+      "languageVersion": "3.4"
     },
     {
       "name": "flutter_web_plugins",
@@ -576,6 +594,12 @@
       "rootUri": "file:///C:/Users/hkokin.MELISSA/AppData/Local/Pub/Cache/hosted/pub.dev/lottie-3.5.1",
       "packageUri": "lib/",
       "languageVersion": "3.12"
+    },
+    {
+      "name": "markdown",
+      "rootUri": "file:///C:/Users/hkokin.MELISSA/AppData/Local/Pub/Cache/hosted/pub.dev/markdown-7.3.1",
+      "packageUri": "lib/",
+      "languageVersion": "3.9"
     },
     {
       "name": "matcher",
@@ -806,6 +830,18 @@
       "languageVersion": "2.12"
     },
     {
+      "name": "share_plus",
+      "rootUri": "file:///C:/Users/hkokin.MELISSA/AppData/Local/Pub/Cache/hosted/pub.dev/share_plus-10.1.4",
+      "packageUri": "lib/",
+      "languageVersion": "3.4"
+    },
+    {
+      "name": "share_plus_platform_interface",
+      "rootUri": "file:///C:/Users/hkokin.MELISSA/AppData/Local/Pub/Cache/hosted/pub.dev/share_plus_platform_interface-5.0.2",
+      "packageUri": "lib/",
+      "languageVersion": "2.18"
+    },
+    {
       "name": "shared_preferences",
       "rootUri": "file:///C:/Users/hkokin.MELISSA/AppData/Local/Pub/Cache/hosted/pub.dev/shared_preferences-2.5.5",
       "packageUri": "lib/",
@@ -888,6 +924,24 @@
       "rootUri": "file:///C:/Users/hkokin.MELISSA/AppData/Local/Pub/Cache/hosted/pub.dev/source_span-1.10.2",
       "packageUri": "lib/",
       "languageVersion": "3.1"
+    },
+    {
+      "name": "speech_to_text",
+      "rootUri": "file:///C:/Users/hkokin.MELISSA/AppData/Local/Pub/Cache/hosted/pub.dev/speech_to_text-7.4.0",
+      "packageUri": "lib/",
+      "languageVersion": "3.3"
+    },
+    {
+      "name": "speech_to_text_platform_interface",
+      "rootUri": "file:///C:/Users/hkokin.MELISSA/AppData/Local/Pub/Cache/hosted/pub.dev/speech_to_text_platform_interface-2.4.0",
+      "packageUri": "lib/",
+      "languageVersion": "3.0"
+    },
+    {
+      "name": "speech_to_text_windows",
+      "rootUri": "file:///C:/Users/hkokin.MELISSA/AppData/Local/Pub/Cache/hosted/pub.dev/speech_to_text_windows-1.0.1",
+      "packageUri": "lib/",
+      "languageVersion": "3.0"
     },
     {
       "name": "sqflite",
