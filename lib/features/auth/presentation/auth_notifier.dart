@@ -8,12 +8,16 @@ part 'auth_notifier.g.dart';
 class AuthNotifier extends _$AuthNotifier {
   @override
   Future<AuthSessionState> build() async {
-    final repo = ref.watch(authRepositoryProvider);
-    final user = await repo.restoreSession();
-    if (user != null) {
-      return AuthSessionState.authenticated(user: user);
-    }
-    return const AuthSessionState.unauthenticated();
+    // TODO: Replace with real session restore for production
+    // Dev bypass — goes straight to home
+    return const AuthSessionState.authenticated(
+      user: AppUser(
+        id:          'dev-001',
+        isAnonymous: true,
+        isOnboarded: true,
+        displayName: 'Επισκέπτης',
+      ),
+    );
   }
 
   Future<void> login({required String email, required String password}) async {

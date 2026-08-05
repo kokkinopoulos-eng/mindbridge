@@ -61,16 +61,15 @@ class AuthRepository {
 
   // ── Anonymous session ─────────────────────────────────────────────────
   Future<AppUser> loginAnonymous() async {
-    try {
-      final resp = await dio.post('/auth/anonymous');
-      await storage.saveTokens(
-        accessToken:  resp.data['access_token'] as String,
-        refreshToken: resp.data['refresh_token'] as String,
-      );
-      return AppUser.fromJson(resp.data['user'] as Map<String, dynamic>);
-    } on DioException catch (e) {
-      throw ApiException.fromDioError(e);
-    }
+    // TODO: Replace with real API call when backend is ready
+    // Mock anonymous user for development/demo
+    await Future.delayed(const Duration(milliseconds: 500));
+    return const AppUser(
+      id:          'anon-dev-001',
+      isAnonymous: true,
+      isOnboarded: true,
+      displayName: 'Επισκέπτης',
+    );
   }
 
   // ── Logout ────────────────────────────────────────────────────────────

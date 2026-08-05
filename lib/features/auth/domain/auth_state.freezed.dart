@@ -317,10 +317,8 @@ UserPreferences _$UserPreferencesFromJson(Map<String, dynamic> json) {
 
 /// @nodoc
 mixin _$UserPreferences {
-  String get aiTone =>
-      throw _privateConstructorUsedError; // 'friendly' | 'professional' | 'neutral'
-  List<String> get concerns =>
-      throw _privateConstructorUsedError; // user's stated issues
+  String get aiTone => throw _privateConstructorUsedError;
+  List<String> get concerns => throw _privateConstructorUsedError;
   int get preferredSessionMinutes => throw _privateConstructorUsedError;
   bool get notificationsEnabled => throw _privateConstructorUsedError;
   String get language => throw _privateConstructorUsedError;
@@ -472,9 +470,7 @@ class _$UserPreferencesImpl implements _UserPreferences {
   @override
   @JsonKey()
   final String aiTone;
-// 'friendly' | 'professional' | 'neutral'
   final List<String> _concerns;
-// 'friendly' | 'professional' | 'neutral'
   @override
   @JsonKey()
   List<String> get concerns {
@@ -483,7 +479,6 @@ class _$UserPreferencesImpl implements _UserPreferences {
     return EqualUnmodifiableListView(_concerns);
   }
 
-// user's stated issues
   @override
   @JsonKey()
   final int preferredSessionMinutes;
@@ -554,9 +549,9 @@ abstract class _UserPreferences implements UserPreferences {
       _$UserPreferencesImpl.fromJson;
 
   @override
-  String get aiTone; // 'friendly' | 'professional' | 'neutral'
+  String get aiTone;
   @override
-  List<String> get concerns; // user's stated issues
+  List<String> get concerns;
   @override
   int get preferredSessionMinutes;
   @override
@@ -674,8 +669,8 @@ class __$$InitialImplCopyWithImpl<$Res>
 
 /// @nodoc
 
-class _$InitialImpl implements _Initial {
-  const _$InitialImpl();
+class _$InitialImpl extends _Initial {
+  const _$InitialImpl() : super._();
 
   @override
   String toString() {
@@ -772,8 +767,9 @@ class _$InitialImpl implements _Initial {
   }
 }
 
-abstract class _Initial implements AuthSessionState {
+abstract class _Initial extends AuthSessionState {
   const factory _Initial() = _$InitialImpl;
+  const _Initial._() : super._();
 }
 
 /// @nodoc
@@ -797,8 +793,8 @@ class __$$LoadingImplCopyWithImpl<$Res>
 
 /// @nodoc
 
-class _$LoadingImpl implements _Loading {
-  const _$LoadingImpl();
+class _$LoadingImpl extends _Loading {
+  const _$LoadingImpl() : super._();
 
   @override
   String toString() {
@@ -895,8 +891,9 @@ class _$LoadingImpl implements _Loading {
   }
 }
 
-abstract class _Loading implements AuthSessionState {
+abstract class _Loading extends AuthSessionState {
   const factory _Loading() = _$LoadingImpl;
+  const _Loading._() : super._();
 }
 
 /// @nodoc
@@ -946,8 +943,8 @@ class __$$AuthenticatedImplCopyWithImpl<$Res>
 
 /// @nodoc
 
-class _$AuthenticatedImpl implements _Authenticated {
-  const _$AuthenticatedImpl({required this.user});
+class _$AuthenticatedImpl extends _Authenticated {
+  const _$AuthenticatedImpl({required this.user}) : super._();
 
   @override
   final AppUser user;
@@ -1057,9 +1054,10 @@ class _$AuthenticatedImpl implements _Authenticated {
   }
 }
 
-abstract class _Authenticated implements AuthSessionState {
+abstract class _Authenticated extends AuthSessionState {
   const factory _Authenticated({required final AppUser user}) =
       _$AuthenticatedImpl;
+  const _Authenticated._() : super._();
 
   AppUser get user;
 
@@ -1091,8 +1089,8 @@ class __$$UnauthenticatedImplCopyWithImpl<$Res>
 
 /// @nodoc
 
-class _$UnauthenticatedImpl implements _Unauthenticated {
-  const _$UnauthenticatedImpl();
+class _$UnauthenticatedImpl extends _Unauthenticated {
+  const _$UnauthenticatedImpl() : super._();
 
   @override
   String toString() {
@@ -1189,8 +1187,9 @@ class _$UnauthenticatedImpl implements _Unauthenticated {
   }
 }
 
-abstract class _Unauthenticated implements AuthSessionState {
+abstract class _Unauthenticated extends AuthSessionState {
   const factory _Unauthenticated() = _$UnauthenticatedImpl;
+  const _Unauthenticated._() : super._();
 }
 
 /// @nodoc
@@ -1228,8 +1227,8 @@ class __$$ErrorImplCopyWithImpl<$Res>
 
 /// @nodoc
 
-class _$ErrorImpl implements _Error {
-  const _$ErrorImpl(this.message);
+class _$ErrorImpl extends _Error {
+  const _$ErrorImpl(this.message) : super._();
 
   @override
   final String message;
@@ -1339,8 +1338,9 @@ class _$ErrorImpl implements _Error {
   }
 }
 
-abstract class _Error implements AuthSessionState {
+abstract class _Error extends AuthSessionState {
   const factory _Error(final String message) = _$ErrorImpl;
+  const _Error._() : super._();
 
   String get message;
 

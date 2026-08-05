@@ -11,7 +11,7 @@ import '../../features/dashboard/presentation/dashboard_screen.dart';
 import '../../features/chat/presentation/chat_screen.dart';
 import '../../features/exercises/presentation/exercises_screen.dart';
 import '../../features/assessment/presentation/assessment_screen.dart';
-import '../../features/assessment/presentation/assessment_result_screen.dart';
+import '../../features/settings/presentation/api_settings_screen.dart';
 import '../../shared/widgets/main_scaffold.dart';
 
 part 'app_router.g.dart';
@@ -26,8 +26,9 @@ abstract final class AppRoutes {
   static const chat        = '/home/chat';
   static const exercises   = '/home/exercises';
   static const progress    = '/home/progress';
-  static const assessment  = '/assessment/:type';
+  static const assessment   = '/assessment/:type';
   static const assessResult = '/assessment/:type/result';
+  static const apiSettings  = '/settings/api';
 
   static String assessmentPath(String type) => '/assessment/$type';
   static String assessResultPath(String type) => '/assessment/$type/result';
@@ -42,15 +43,16 @@ GoRouter appRouter(Ref ref) {
     initialLocation: AppRoutes.splash,
     debugLogDiagnostics: true,
     redirect: (context, state) {
-      final isLoggedIn = authState.valueOrNull?.isAuthenticated ?? false;
+      final isLoggedIn  = authState.valueOrNull?.isAuthenticated ?? false;
       final isOnboarded = authState.valueOrNull?.isOnboarded ?? false;
-      final isAuthRoute = state.matchedLocation == AppRoutes.login ||
-          state.matchedLocation == AppRoutes.register;
+      final loc         = state.matchedLocation;
+      final isAuthRoute = loc == AppRoutes.login || loc == AppRoutes.register;
+      final isSplash    = loc == AppRoutes.splash;
 
-      if (!isLoggedIn && !isAuthRoute) return AppRoutes.login;
-      if (isLoggedIn && !isOnboarded && state.matchedLocation != AppRoutes.onboarding) {
-        return AppRoutes.onboarding;
-      }
+      if (!isLoggedIn && !isAuthRoute && !isSplash) return AppRoutes.login;
+      if (!isLoggedIn && isSplash) return null; // wait on splash while loading
+      if (isLoggedIn && isSplash) return AppRoutes.home;
+      if (isLoggedIn && !isOnboarded && loc != AppRoutes.onboarding) return AppRoutes.onboarding;
       if (isLoggedIn && isAuthRoute) return AppRoutes.home;
       return null;
     },
@@ -102,6 +104,11 @@ GoRouter appRouter(Ref ref) {
         ],
       ),
       // ── Standalone routes ───────────────────────────────────────────
+      GoRoute(
+        path: AppRoutes.apiSettings,
+        pageBuilder: (_, state) =>
+            _fadeTransition(state, const ApiSettingsScreen()),
+      ),
       GoRoute(
         path: AppRoutes.assessment,
         builder: (context, state) {

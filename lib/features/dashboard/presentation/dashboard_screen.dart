@@ -47,6 +47,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
                 moodLabels: _moodLabels,
                 onMoodSelected: (i) => setState(() => _selectedMood = i),
                 onStartSession: () => context.go(AppRoutes.chat),
+                onLongPress: () => context.push(AppRoutes.apiSettings),
               )),
 
               SliverPadding(
@@ -119,12 +120,14 @@ class _GreetingHeader extends StatelessWidget {
     required this.moodLabels,
     required this.onMoodSelected,
     required this.onStartSession,
+    required this.onLongPress,
   });
 
   final int selectedMood;
   final List<String> moods, moodLabels;
   final ValueChanged<int> onMoodSelected;
   final VoidCallback onStartSession;
+  final VoidCallback onLongPress;
 
   String get _greeting {
     final h = DateTime.now().hour;
@@ -134,7 +137,9 @@ class _GreetingHeader extends StatelessWidget {
   }
 
   @override
-  Widget build(BuildContext context) => Container(
+  Widget build(BuildContext context) => GestureDetector(
+        onLongPress: onLongPress,
+        child: Container(
         decoration: const BoxDecoration(
           gradient: AppColors.brandGradient,
         ),
@@ -284,7 +289,7 @@ class _GreetingHeader extends StatelessWidget {
             ),
           ],
         ),
-      );
+      ));
 }
 
 // ── Stats row ──────────────────────────────────────────────────────────────

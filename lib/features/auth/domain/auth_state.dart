@@ -22,8 +22,8 @@ class AppUser with _$AppUser {
 @freezed
 class UserPreferences with _$UserPreferences {
   const factory UserPreferences({
-    @Default('friendly') String aiTone,           // 'friendly' | 'professional' | 'neutral'
-    @Default(['anxiety']) List<String> concerns,   // user's stated issues
+    @Default('friendly') String aiTone,
+    @Default(['anxiety']) List<String> concerns,
     @Default(15) int preferredSessionMinutes,
     @Default(true) bool notificationsEnabled,
     @Default('el') String language,
@@ -35,6 +35,9 @@ class UserPreferences with _$UserPreferences {
 
 @freezed
 class AuthSessionState with _$AuthSessionState {
+  // Required for defining custom getters inside a @freezed class
+  const AuthSessionState._();
+
   const factory AuthSessionState.initial()        = _Initial;
   const factory AuthSessionState.loading()        = _Loading;
   const factory AuthSessionState.authenticated({
@@ -42,21 +45,16 @@ class AuthSessionState with _$AuthSessionState {
   }) = _Authenticated;
   const factory AuthSessionState.unauthenticated() = _Unauthenticated;
   const factory AuthSessionState.error(String message) = _Error;
-}
 
-extension AuthSessionStateX on AuthSessionState {
-  bool get isAuthenticated => maybeWhen(
-        authenticated: (_) => true,
-        orElse: () => false,
-      );
+  bool get isAuthenticated => this is _Authenticated;
 
-  bool get isOnboarded => maybeWhen(
-        authenticated: (user) => user.isOnboarded,
-        orElse: () => false,
-      );
+  bool get isOnboarded {
+    final s = this;
+    return s is _Authenticated && s.user.isOnboarded;
+  }
 
-  AppUser? get user => maybeWhen(
-        authenticated: (user) => user,
-        orElse: () => null,
-      );
+  AppUser? get currentUser {
+    final s = this;
+    return s is _Authenticated ? s.user : null;
+  }
 }
